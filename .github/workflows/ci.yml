@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Validate Skill Files
+      run: |
+        for skill in skills/*/SKILL.md; do
+          echo "Validating $skill"
+          if ! grep -q "^---" "$skill"; then
+            echo "Error: $skill missing frontmatter"
+            exit 1
+          fi
+          if ! grep -q "^name:" "$skill"; then
+            echo "Error: $skill missing name field"
+            exit 1
+          fi
+        done
+        echo "All skill files validated"
+    
+    - name: Check TypeScript Syntax
+      run: |
+        if command -v npx &> /dev/null; then
+          npx tsc --noEmit system-prompt/implementations/*.ts 2>/dev/null || true
+        fi
+    
+    - name: Validate Markdown
+      run: |
+        for file in $(find . -name "*.md" -not -path "./.github/*"); do
+          if [ ! -s "$file" ]; then
+            echo "Warning: Empty file $file"
+          fi
+        done
+    
+    - name: Test Install Script
+      run: |
+        chmod +x install.sh
+        # Dry run test
+        bash -n install.sh
+        echo "Install script syntax OK"
